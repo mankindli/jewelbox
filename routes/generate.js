@@ -108,4 +108,19 @@ router.get('/node/:nodeId/status', (req, res) => {
   res.json({ status: node.status, images });
 });
 
+router.delete('/image/:imageId', (req, res) => {
+  const image = db.prepare('SELECT gi.*, dn.project_id FROM generated_images gi JOIN design_nodes dn ON gi.node_id = dn.id WHERE gi.id = ?').get(req.params.imageId);
+  if (!image) return res.status(404).json({ error: '图片不存在' });
+  const project = db.prepare('SELECT id FROM projects WHERE id = ? AND user_id = ?').get(image.project_id, req.user.id);
+  if (!project) return res.status(403).json({ error: '无权限' });
+  if (image.image_path) {
+    const fs = require('fs');
+    const path = require('path');
+    const filePath = path.join(__dirname, '..', image.image_path);
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  }
+  db.prepare('DELETE FROM generated_images WHERE id = ?').run(req.params.imageId);
+  res.json({ success: true });
+});
+
 module.exports = router;
