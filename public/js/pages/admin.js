@@ -26,11 +26,17 @@ const AdminPage = {
       const data = await API.get('/api/admin/endpoints');
       content.innerHTML = `<div class="admin-section">
         <button class="btn btn-primary" onclick="AdminPage.showEndpointForm()">+ 新建端点</button>
-        <table class="data-table"><thead><tr><th>名称</th><th>模型</th><th>类型</th><th>状态</th><th>优先级</th><th>操作</th></tr></thead>
-        <tbody>${data.endpoints.map(e => `<tr><td>${e.name}</td><td>${e.model}</td><td>${e.model_type === 'understanding' ? '理解模型' : '图片模型'}</td><td><span class="status-dot status-${e.status}"></span>${e.status}</td><td>${e.priority}</td>
-          <td><button class="btn-sm" onclick="AdminPage.testEndpoint(${e.id})">检测</button>
-          <button class="btn-sm" onclick='AdminPage.showEndpointForm(${JSON.stringify(e).replace(/'/g,"&#39;")})'>编辑</button>
-          <button class="btn-sm btn-danger" onclick="AdminPage.deleteEndpoint(${e.id})">删除</button></td></tr>`).join('')}</tbody></table></div>`;
+        <p class="hint">优先级数字越大越优先使用，同优先级轮询分配。端点失败自动停用，5分钟后自动恢复尝试。</p>
+        <table class="data-table"><thead><tr><th>名称</th><th>模型</th><th>类型</th><th>状态</th><th>优先级</th><th>失败次数</th><th>操作</th></tr></thead>
+        <tbody>${data.endpoints.map(e => `<tr><td>${e.name}</td><td>${e.model}</td><td>${e.model_type === 'understanding' ? '理解模型' : '图片模型'}</td>
+          <td><span class="status-dot status-${e.status}"></span>${e.status === 'online' ? '在线' : '离线'}</td>
+          <td>${e.priority}</td><td>${e.fail_count || 0}</td>
+          <td>
+            <button class="btn-sm" onclick="AdminPage.toggleEndpoint(${e.id},'${e.status}')">${e.status === 'online' ? '停用' : '启用'}</button>
+            <button class="btn-sm" onclick="AdminPage.testEndpoint(${e.id})">检测</button>
+            <button class="btn-sm" onclick='AdminPage.showEndpointForm(${JSON.stringify(e).replace(/'/g,"&#39;")})'>编辑</button>
+            <button class="btn-sm btn-danger" onclick="AdminPage.deleteEndpoint(${e.id})">删除</button>
+          </td></tr>`).join('')}</tbody></table></div>`;
     }
   },
 
@@ -112,6 +118,10 @@ const AdminPage = {
   toggleUser(id, currentStatus) { API.put(`/api/admin/users/${id}`, { status: currentStatus ? 0 : 1 }).then(() => this.showSection('users')); },
   deleteUser(id) { if (confirm('确定删除？')) API.del(`/api/admin/users/${id}`).then(() => this.showSection('users')); },
   deleteEndpoint(id) { if (confirm('确定删除？')) API.del(`/api/admin/endpoints/${id}`).then(() => this.showSection('endpoints')); },
+  toggleEndpoint(id, currentStatus) {
+    const newStatus = currentStatus === 'online' ? 'offline' : 'online';
+    API.put(`/api/admin/endpoints/${id}`, { status: newStatus, fail_count: 0 }).then(() => this.showSection('endpoints')).catch(e => App.showToast(e.message, 'error'));
+  },
   async testEndpoint(id) {
     const btn = event.target;
     const origText = btn.textContent;

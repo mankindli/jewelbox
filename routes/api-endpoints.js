@@ -18,7 +18,7 @@ router.post('/', (req, res) => {
 });
 
 router.put('/:id', (req, res) => {
-  const { name, base_url, api_key, model, model_type, status, priority } = req.body;
+  const { name, base_url, api_key, model, model_type, status, priority, fail_count } = req.body;
   const ep = db.prepare('SELECT id FROM api_endpoints WHERE id = ?').get(req.params.id);
   if (!ep) return res.status(404).json({ error: '端点不存在' });
   const fields = [];
@@ -30,6 +30,7 @@ router.put('/:id', (req, res) => {
   if (model_type !== undefined) { fields.push('model_type = ?'); values.push(model_type); }
   if (status !== undefined) { fields.push('status = ?'); values.push(status); }
   if (priority !== undefined) { fields.push('priority = ?'); values.push(priority); }
+  if (fail_count !== undefined) { fields.push('fail_count = ?'); values.push(fail_count); }
   if (fields.length) {
     fields.push('updated_at = CURRENT_TIMESTAMP');
     values.push(req.params.id);
