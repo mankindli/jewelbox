@@ -64,6 +64,43 @@ router.post('/:projectId/refine', async (req, res) => {
   }
 });
 
+router.post('/:projectId/continue', async (req, res) => {
+  try {
+    const project = db.prepare('SELECT * FROM projects WHERE id = ? AND user_id = ?').get(req.params.projectId, req.user.id);
+    if (!project) return res.status(404).json({ error: '项目不存在' });
+    const { nodeId, count } = req.body;
+    if (!nodeId || !count) return res.status(400).json({ error: '缺少参数' });
+    const node = db.prepare('SELECT * FROM design_nodes WHERE id = ? AND project_id = ?').get(nodeId, project.id);
+    if (!node) return res.status(404).json({ error: '节点不存在' });
+
+    const existingImages = db.prepare('SELECT MAX(slot_index) as maxSlot FROM generated_images WHERE node_id = ?').get(nodeId);
+    const startSlot = (existingImages.maxSlot ?? -1) + 1;
+
+    const variations = await generateVariationPrompts(node.base_prompt, count);
+    if (!variations.length) return res.status(500).json({ error: '生成变体prompt失败' });
+
+    const imageIds = [];
+    const stmt = db.prepare('INSERT INTO generated_images (node_id, slot_index, variation_prompt) VALUES (?, ?, ?)');
+    for (let i = 0; i < variations.length; i++) {
+      const r = stmt.run(nodeId, startSlot + i, typeof variations[i] === 'string' ? variations[i] : JSON.stringify(variations[i]));
+      imageIds.push(r.lastInsertRowid);
+    }
+
+    db.prepare("UPDATE design_nodes SET status = 'generating' WHERE id = ?").run(nodeId);
+
+    let referenceBase64 = null;
+    if (node.selected_image_id) {
+      const refImg = db.prepare('SELECT image_path FROM generated_images WHERE id = ?').get(node.selected_image_id);
+      if (refImg) referenceBase64 = resolveImageToBase64(refImg.image_path);
+    }
+
+    startBatchGeneration(nodeId, variations.map(v => typeof v === 'string' ? v : JSON.stringify(v)), referenceBase64, startSlot);
+    res.json({ nodeId, imageIds });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 router.get('/node/:nodeId/status', (req, res) => {
   const node = db.prepare('SELECT * FROM design_nodes WHERE id = ?').get(req.params.nodeId);
   if (!node) return res.status(404).json({ error: '节点不存在' });

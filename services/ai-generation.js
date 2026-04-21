@@ -105,9 +105,9 @@ async function generateSingleImage(imageId, variationPrompt, referenceImageBase6
   }
 }
 
-function startBatchGeneration(nodeId, variationPrompts, referenceImageBase64) {
+function startBatchGeneration(nodeId, variationPrompts, referenceImageBase64, startSlot = 0) {
   const promises = variationPrompts.map((prompt, index) => {
-    const image = db.prepare('SELECT id FROM generated_images WHERE node_id = ? AND slot_index = ?').get(nodeId, index);
+    const image = db.prepare('SELECT id FROM generated_images WHERE node_id = ? AND slot_index = ?').get(nodeId, startSlot + index);
     if (!image) return Promise.resolve();
     return generateSingleImage(image.id, prompt, referenceImageBase64);
   });

@@ -109,7 +109,8 @@ const WorkspacePage = {
         ${node.adjustment_desc ? `<div class="grid-context-desc"><span>调整描述:</span><span class="context-text">${node.adjustment_desc}</span></div>` : ''}
       </div>`;
     }
-    return header + ImageGrid.render(node.images || [], cols, this.selectedImageId);
+    return header + ImageGrid.render(node.images || [], cols, this.selectedImageId) +
+      (node.status === 'completed' ? `<div class="continue-gen"><button class="btn" onclick="WorkspacePage.showContinueDialog()">继续生成</button></div>` : '');
   },
 
   findImageById(imageId) {
@@ -195,6 +196,55 @@ const WorkspacePage = {
       this.startPolling(data.nodeId);
     } catch (e) { App.showToast(e.message, 'error'); }
     btn.disabled = false; btn.textContent = '生成设计图';
+  },
+
+  showContinueDialog() {
+    const overlay = document.createElement('div');
+    overlay.className = 'image-overlay';
+    overlay.innerHTML = `<div class="overlay-content create-dialog">
+      <h3>继续生成</h3>
+      <p>基于当前相同的 Prompt 继续生成更多设计图</p>
+      <label>生成张数</label>
+      <div class="count-options">
+        <button class="btn count-btn active" data-count="2">2张</button>
+        <button class="btn count-btn" data-count="4">4张</button>
+        <button class="btn count-btn" data-count="6">6张</button>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" id="btnContinueGen">开始生成</button>
+        <button class="btn" onclick="this.closest('.image-overlay').remove()">取消</button>
+      </div>
+    </div>`;
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+    document.body.appendChild(overlay);
+    let selectedCount = 2;
+    overlay.querySelectorAll('.count-btn').forEach(btn => {
+      btn.onclick = () => {
+        overlay.querySelectorAll('.count-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedCount = Number(btn.dataset.count);
+      };
+    });
+    document.getElementById('btnContinueGen').onclick = () => {
+      overlay.remove();
+      this.continueGenerate(selectedCount);
+    };
+  },
+
+  async continueGenerate(count) {
+    const node = this.findNode(this.activeNodeId);
+    if (!node) return;
+    try {
+      App.showToast('正在生成...', 'info');
+      const data = await API.post(`/api/generate/${this.project.id}/continue`, {
+        nodeId: node.id,
+        count
+      });
+      await this.reloadProject();
+      document.getElementById('imageGridContainer').innerHTML = this.renderActiveGrid();
+      document.getElementById('treeContainer').innerHTML = IterationTree.render(this.tree, this.activeNodeId);
+      this.startPolling(this.activeNodeId);
+    } catch (e) { App.showToast(e.message, 'error'); }
   },
 
   selectedImageId: null,
