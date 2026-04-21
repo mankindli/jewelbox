@@ -25,12 +25,16 @@ router.get('/:id', (req, res) => {
   const project = db.prepare('SELECT * FROM projects WHERE id = ? AND user_id = ?').get(req.params.id, req.user.id);
   if (!project) return res.status(404).json({ error: '项目不存在' });
 
-  // Fix stale generating/pending nodes and images
-  db.prepare("UPDATE generated_images SET status = 'failed', error_message = '服务重启，任务中断' WHERE status IN ('generating', 'pending') AND node_id IN (SELECT id FROM design_nodes WHERE project_id = ?)").run(project.id);
-  const staleNodes = db.prepare("SELECT id FROM design_nodes WHERE project_id = ? AND status IN ('generating', 'pending')").all(project.id);
+  // Fix stale generating/pending nodes and images (only if stuck for over 3 minutes)
+  const staleThreshold = 3 * 60;
+  db.prepare(`UPDATE generated_images SET status = 'failed', error_message = '任务超时中断' WHERE status IN ('generating', 'pending') AND (strftime('%s','now') - strftime('%s',created_at)) > ? AND node_id IN (SELECT id FROM design_nodes WHERE project_id = ?)`).run(staleThreshold, project.id);
+  const staleNodes = db.prepare(`SELECT id FROM design_nodes WHERE project_id = ? AND status IN ('generating', 'pending') AND (strftime('%s','now') - strftime('%s',created_at)) > ?`).all(project.id, staleThreshold);
   for (const sn of staleNodes) {
-    const hasSuccess = db.prepare("SELECT id FROM generated_images WHERE node_id = ? AND status = 'completed' LIMIT 1").get(sn.id);
-    db.prepare("UPDATE design_nodes SET status = ? WHERE id = ?").run(hasSuccess ? 'completed' : 'failed', sn.id);
+    const stillRunning = db.prepare("SELECT id FROM generated_images WHERE node_id = ? AND status IN ('generating', 'pending') LIMIT 1").get(sn.id);
+    if (!stillRunning) {
+      const hasSuccess = db.prepare("SELECT id FROM generated_images WHERE node_id = ? AND status = 'completed' LIMIT 1").get(sn.id);
+      db.prepare("UPDATE design_nodes SET status = ? WHERE id = ?").run(hasSuccess ? 'completed' : 'failed', sn.id);
+    }
   }
 
   const nodes = db.prepare('SELECT * FROM design_nodes WHERE project_id = ? ORDER BY depth ASC, created_at ASC').all(project.id);
