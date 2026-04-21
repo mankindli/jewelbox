@@ -13,7 +13,7 @@ const ImageGrid = {
           <button onclick="ImageGrid.select(${img.id})" title="选择优化">优化</button>
           <button onclick="ImageGrid.download('${img.image_path}')" title="下载">下载</button>
           <button onclick="ImageGrid.remove(${img.id})" title="删除" class="btn-grid-danger">删除</button>
-        </div>` : img.status === 'failed' ? `<div class="grid-actions grid-actions-fail">
+        </div>` : img.status === 'failed' || img.status === 'generating' || img.status === 'pending' ? `<div class="grid-actions grid-actions-fail">
           <button onclick="ImageGrid.remove(${img.id})" title="删除" class="btn-grid-danger">删除</button>
         </div>` : ''}
         ${img.id === selectedImageId ? '<div class="selected-badge">已选中</div>' : ''}
