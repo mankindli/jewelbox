@@ -109,8 +109,7 @@ const WorkspacePage = {
         ${node.adjustment_desc ? `<div class="grid-context-desc"><span>调整描述:</span><span class="context-text">${node.adjustment_desc}</span></div>` : ''}
       </div>`;
     }
-    const hasCompleted = (node.images || []).some(i => i.status === 'completed');
-    const showContinue = node.status === 'completed' || (hasCompleted && node.status !== 'generating');
+    const showContinue = node.status !== 'generating' && node.status !== 'pending';
     return header + ImageGrid.render(node.images || [], cols, this.selectedImageId) +
       (showContinue ? `<div class="continue-gen"><button class="btn" onclick="WorkspacePage.showContinueDialog()">继续生成</button></div>` : '');
   },
