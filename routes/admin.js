@@ -22,9 +22,14 @@ router.post('/users', (req, res) => {
 });
 
 router.put('/users/:id', (req, res) => {
-  const { nickname, password, role, status } = req.body;
+  const { username, nickname, password, role, status } = req.body;
   const user = db.prepare('SELECT id FROM users WHERE id = ?').get(req.params.id);
   if (!user) return res.status(404).json({ error: '用户不存在' });
+  if (username !== undefined) {
+    const exists = db.prepare('SELECT id FROM users WHERE username = ? AND id != ?').get(username, req.params.id);
+    if (exists) return res.status(400).json({ error: '用户名已存在' });
+    db.prepare('UPDATE users SET username = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(username, req.params.id);
+  }
   if (password) {
     db.prepare('UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(bcrypt.hashSync(password, 10), req.params.id);
   }

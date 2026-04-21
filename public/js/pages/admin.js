@@ -47,7 +47,7 @@ const AdminPage = {
     overlay.innerHTML = `<div class="overlay-content create-dialog">
       <h3>${isEdit ? '编辑用户' : '新建用户'}</h3>
       <form id="userForm">
-        <label>用户名</label><input type="text" id="uf_username" value="${username || ''}" ${isEdit ? 'disabled' : ''} required>
+        <label>用户名</label><input type="text" id="uf_username" value="${username || ''}" required>
         <label>密码${isEdit ? '（留空不修改）' : ''}</label><input type="password" id="uf_password" ${isEdit ? '' : 'required'}>
         <label>昵称</label><input type="text" id="uf_nickname" value="${nickname || ''}">
         <label>角色</label><select id="uf_role"><option value="user" ${role === 'user' ? 'selected' : ''}>普通用户</option><option value="admin" ${role === 'admin' ? 'selected' : ''}>管理员</option></select>
@@ -61,12 +61,12 @@ const AdminPage = {
     document.body.appendChild(overlay);
     document.getElementById('userForm').onsubmit = async (e) => {
       e.preventDefault();
-      const body = { nickname: document.getElementById('uf_nickname').value, role: document.getElementById('uf_role').value };
+      const body = { username: document.getElementById('uf_username').value, nickname: document.getElementById('uf_nickname').value, role: document.getElementById('uf_role').value };
       const pwd = document.getElementById('uf_password').value;
       if (pwd) body.password = pwd;
       try {
         if (isEdit) { await API.put(`/api/admin/users/${id}`, body); }
-        else { body.username = document.getElementById('uf_username').value; body.password = pwd; await API.post('/api/admin/users', body); }
+        else { if (!pwd) { App.showToast('请输入密码', 'error'); return; } await API.post('/api/admin/users', body); }
         overlay.remove();
         this.showSection('users');
       } catch (err) { App.showToast(err.message, 'error'); }
