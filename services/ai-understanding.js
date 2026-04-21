@@ -87,9 +87,9 @@ async function generateVariationPrompts(basePrompt, count = 10) {
   return parseJsonFromContent(content);
 }
 
-async function generateRefinementPrompts(basePrompt, adjustmentDesc, imageBase64) {
+async function generateRefinementPrompts(basePrompt, adjustmentDesc, imageBase64, count = 4) {
   const userContent = [
-    { type: 'text', text: `基础prompt：${basePrompt}\n用户调整需求：${adjustmentDesc}\n\n请基于这张图片、原始prompt和用户的调整需求，生成4个不同的变体prompt。每个变体应体现用户的调整方向，同时保持差异化。返回JSON数组，包含4个prompt字符串。` }
+    { type: 'text', text: `基础prompt：${basePrompt}\n用户调整需求：${adjustmentDesc}\n\n请基于这张图片、原始prompt和用户的调整需求，生成${count}个不同的变体prompt。每个变体应体现用户的调整方向，同时保持差异化。返回JSON数组，包含${count}个prompt字符串。` }
   ];
   if (imageBase64) {
     userContent.unshift({ type: 'image_url', image_url: { url: imageBase64 } });

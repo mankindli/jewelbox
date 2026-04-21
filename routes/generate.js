@@ -76,7 +76,18 @@ router.post('/:projectId/continue', async (req, res) => {
     const existingImages = db.prepare('SELECT MAX(slot_index) as maxSlot FROM generated_images WHERE node_id = ?').get(nodeId);
     const startSlot = (existingImages.maxSlot ?? -1) + 1;
 
-    const variations = await generateVariationPrompts(node.base_prompt, count);
+    let referenceBase64 = null;
+    if (node.selected_image_id) {
+      const refImg = db.prepare('SELECT image_path FROM generated_images WHERE id = ?').get(node.selected_image_id);
+      if (refImg) referenceBase64 = resolveImageToBase64(refImg.image_path);
+    }
+
+    let variations;
+    if (node.node_type === 'refinement' && node.adjustment_desc) {
+      variations = await generateRefinementPrompts(node.base_prompt, node.adjustment_desc, referenceBase64, count);
+    } else {
+      variations = await generateVariationPrompts(node.base_prompt, count);
+    }
     if (!variations.length) return res.status(500).json({ error: '生成变体prompt失败' });
 
     const imageIds = [];
@@ -87,12 +98,6 @@ router.post('/:projectId/continue', async (req, res) => {
     }
 
     db.prepare("UPDATE design_nodes SET status = 'generating' WHERE id = ?").run(nodeId);
-
-    let referenceBase64 = null;
-    if (node.selected_image_id) {
-      const refImg = db.prepare('SELECT image_path FROM generated_images WHERE id = ?').get(node.selected_image_id);
-      if (refImg) referenceBase64 = resolveImageToBase64(refImg.image_path);
-    }
 
     startBatchGeneration(nodeId, variations.map(v => typeof v === 'string' ? v : JSON.stringify(v)), referenceBase64, startSlot);
     res.json({ nodeId, imageIds });
