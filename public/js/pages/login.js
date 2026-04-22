@@ -2,23 +2,17 @@ const LoginPage = {
   render(container) {
     container.innerHTML = `
       <div class="login-page">
-        <article class="login-box">
-          <header class="login-header">
-            <div class="login-logo">&#x1F48E;</div>
-            <h1>JewelBox</h1>
-            <p class="subtitle">AI珠宝设计平台</p>
-          </header>
+        <div class="login-box">
+          <div class="login-logo">&#x1F48E;</div>
+          <h1>JewelBox</h1>
+          <p class="subtitle">AI珠宝设计平台</p>
           <form id="loginForm">
-            <label>用户名
-              <input type="text" id="username" placeholder="请输入用户名" required>
-            </label>
-            <label>密码
-              <input type="password" id="password" placeholder="请输入密码" required>
-            </label>
-            <button type="submit">登录</button>
+            <input type="text" id="username" placeholder="用户名" required>
+            <input type="password" id="password" placeholder="密码" required>
+            <button type="submit" class="login-btn">登录</button>
           </form>
           <p id="loginError" class="error-text"></p>
-        </article>
+        </div>
       </div>`;
     document.getElementById('loginForm').onsubmit = async (e) => {
       e.preventDefault();
